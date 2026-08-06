@@ -25,3 +25,4 @@ supabase/.temp
 public_favicon_tmp/
 brand/extracted/
 *.zip
+.env*

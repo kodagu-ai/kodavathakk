@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { site } from "../lib/site";
+import Leaderboard from "./Leaderboard";
 
 export const metadata: Metadata = {
   title: "Community & Contribution",
@@ -59,6 +60,8 @@ export default function CommunityPage() {
           </p>
         </div>
       </section>
+
+      <Leaderboard />
 
       <section>
         <div className="container">

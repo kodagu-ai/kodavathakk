@@ -61,7 +61,7 @@ const NINETY = [
   {
     days: "Days 1–15",
     action:
-      "Convene the founding circle: Karnataka Kodava Sahitya Academy, Mangalore University, linguists, diaspora technologists, elder representatives. Draft the guardianship licence and consent forms. Open conversations with AI4Bharat, Vaani/ARTPARK, and Karya.",
+      "Meet the founding circle with the Karnataka Kodava Sahitya Academy, Akhila Kodava Samaja, the different Kodava Samajas, linguists, diaspora technologists, and elder representatives. Draft the guardianship licence and the consent forms, and open conversations with AI4Bharat, Vaani/ARTPARK, and Karya.",
     outcome: "Governance skeleton and partner intent in writing",
   },
   {

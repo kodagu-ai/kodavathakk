@@ -69,6 +69,65 @@ export const PHASE_TARGETS = {
   phase3: 1000,
 } as const;
 
+// ── Contributor badges (brand motifs: paddy, gejje thande, thook bolcha,
+// peechekathi). Earned by clips contributed OR minutes recorded — whichever
+// comes first. Order matters: highest tier first.
+export type BadgeTier = {
+  key: string;
+  label: string;
+  motif: string; // emoji stand-in for the brand motif icon
+  minClips: number;
+  minSeconds: number;
+  color: string; // chip accent (brand palette)
+  meaning: string;
+};
+
+export const BADGES: BadgeTier[] = [
+  {
+    key: "guardian",
+    label: "Guardian of Thakk",
+    motif: "🛡️",
+    minClips: 25,
+    minSeconds: 3 * 3600,
+    color: "#6E1E2A",
+    meaning: "Peechekathi — 25 recordings or 3 hours given",
+  },
+  {
+    key: "keeper",
+    label: "Keeper of the Flame",
+    motif: "🪔",
+    minClips: 12,
+    minSeconds: 3600,
+    color: "#C9A227",
+    meaning: "Thook bolcha — 12 recordings or 1 hour given",
+  },
+  {
+    key: "storyteller",
+    label: "Storyteller",
+    motif: "🔔",
+    minClips: 5,
+    minSeconds: 15 * 60,
+    color: "#2E5E6E",
+    meaning: "Gejje thande — 5 recordings or 15 minutes given",
+  },
+  {
+    key: "first_voice",
+    label: "First Voice",
+    motif: "🌾",
+    minClips: 1,
+    minSeconds: 1,
+    color: "#1F3D2B",
+    meaning: "Paddy sheaf — the first recording given",
+  },
+];
+
+export function badgeFor(clips: number, seconds: number): BadgeTier {
+  return (
+    BADGES.find((b) => clips >= b.minClips || seconds >= b.minSeconds) ??
+    BADGES[BADGES.length - 1]
+  );
+}
+
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // storage bucket cap
 export const MAX_DURATION_SECONDS = 7200;
 
