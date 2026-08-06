@@ -1,84 +1,106 @@
 "use client";
 
-import { useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { createSupabaseBrowserClient } from "../../lib/supabase/client";
 
-// Admin sign-in. Auth is Supabase email + password; only the admin email
-// passes the middleware/layout gates, so a stray sign-in gets bounced.
-export default function AdminLoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
+// Admin sign-in via magic link. The link is only ever sent to the one admin
+// address, so although anyone can load this page, only the admin's inbox can
+// complete a login. The server (middleware + every admin page/route) is the
+// real gate; the client check just avoids emailing strangers.
+const ADMIN_EMAIL = "poonacha@cyberhuman.ai";
 
-  async function signIn(e: React.FormEvent) {
+function LoginInner() {
+  const params = useSearchParams();
+  const urlError = params.get("error");
+  const [email, setEmail] = useState(ADMIN_EMAIL);
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [message, setMessage] = useState(urlError || "");
+
+  async function sendLink(e: React.FormEvent) {
     e.preventDefault();
-    setErr("");
-    setBusy(true);
+    setMessage("");
+    if (email.trim().toLowerCase() !== ADMIN_EMAIL) {
+      setStatus("error");
+      setMessage("This admin area is restricted.");
+      return;
+    }
+    setStatus("sending");
     try {
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: ADMIN_EMAIL,
+        options: {
+          emailRedirectTo: `${window.location.origin}/admin/auth/callback`,
+          shouldCreateUser: false,
+        },
       });
       if (error) throw error;
-      window.location.href = "/admin";
-    } catch (e) {
-      setErr(
-        e instanceof Error && /credential/i.test(e.message)
-          ? "Email or password did not match."
-          : "Could not sign in. Please try again."
+      setStatus("sent");
+    } catch (err) {
+      setStatus("error");
+      setMessage(
+        err instanceof Error ? err.message : "Could not send the link. Try again."
       );
-      setBusy(false);
     }
   }
 
   return (
     <section>
-      <div className="container" style={{ maxWidth: 440, paddingTop: 40, paddingBottom: 60 }}>
+      <div className="container" style={{ maxWidth: 460, paddingTop: 40, paddingBottom: 60 }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/kodava-thakk-logo-transparent.svg" alt="" style={{ width: 88, marginBottom: 20 }} />
         <h1 style={{ fontSize: "2rem" }}>Admin sign in</h1>
         <hr className="gold-rule" />
-        <form onSubmit={signIn}>
-          <div className="field">
-            <label htmlFor="adm-email">Email</label>
-            <input
-              id="adm-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="username"
-              required
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="adm-pass">Password</label>
-            <input
-              id="adm-pass"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </div>
-          {err && (
-            <p className="notice-err" role="alert">
-              {err}
+        {status === "sent" ? (
+          <div className="notice-ok">
+            <p style={{ margin: 0 }}>
+              Check your inbox — a one-time sign-in link is on its way to{" "}
+              <strong>{ADMIN_EMAIL}</strong>. Open it <strong>on this device</strong>{" "}
+              to enter the dashboard. You can close this tab.
             </p>
-          )}
-          <button className="btn btn-primary" type="submit" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
-          </button>
-        </form>
+          </div>
+        ) : (
+          <>
+            <p style={{ marginBottom: 20, color: "var(--mist)" }}>
+              We&apos;ll email you a one-time magic link — no password to
+              remember.
+            </p>
+            <form onSubmit={sendLink}>
+              <div className="field">
+                <label htmlFor="adm-email">Email</label>
+                <input
+                  id="adm-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                />
+              </div>
+              {message && (
+                <p className="notice-err" role="alert">
+                  {message}
+                </p>
+              )}
+              <button className="btn btn-primary" type="submit" disabled={status === "sending"}>
+                {status === "sending" ? "Sending…" : "Send me a magic link"}
+              </button>
+            </form>
+          </>
+        )}
         <p style={{ marginTop: 22, fontSize: "0.85rem", color: "var(--mist)" }}>
           Access is limited to the project administrator.
         </p>
       </div>
     </section>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense>
+      <LoginInner />
+    </Suspense>
   );
 }
