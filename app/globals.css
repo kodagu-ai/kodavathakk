@@ -130,6 +130,18 @@ section { padding: 64px 0; }
 .btn-outline-ivory:hover { background: var(--ivory); color: var(--maroon); }
 .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
 
+/* Dark sections paint all links ivory — buttons must keep their own colors
+   (ivory text on an ivory pill is invisible). Higher-specificity overrides: */
+.section-maroon a.btn-ivory,
+.section-forest a.btn-ivory { color: var(--maroon); }
+.section-maroon a.btn-ivory:hover,
+.section-forest a.btn-ivory:hover { color: var(--maroon); }
+.section-maroon a.btn-outline-ivory,
+.section-forest a.btn-outline-ivory { color: var(--ivory); }
+.section-maroon a.btn-outline-ivory:hover,
+.section-forest a.btn-outline-ivory:hover { color: var(--maroon); }
+.section-maroon a.btn-primary { color: var(--ivory); }
+
 /* ── Header ──────────────────────────────────────────────────────────────── */
 .site-header {
   position: sticky;
