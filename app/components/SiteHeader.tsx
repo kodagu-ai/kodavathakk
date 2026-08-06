@@ -1,8 +1,10 @@
 import Link from "next/link";
+import SiteNav from "./SiteNav";
 
 // Horizontal lockup per Brand Guidelines v2.0 §02: seal left; KODAVA THAKK in
 // Cormorant Garamond Bold letter-spaced 14% in Kupya Maroon; ಕೊಡವ ತಕ್ಕ್ beneath
-// in Noto Serif Kannada in Mandethira Gold.
+// in Noto Serif Kannada in Mandethira Gold. Nav collapses to a hamburger on
+// mobile (see SiteNav).
 export default function SiteHeader() {
   return (
     <header className="site-header">
@@ -15,16 +17,7 @@ export default function SiteHeader() {
             <span className="kannada">ಕೊಡವ ತಕ್ಕ್</span>
           </span>
         </Link>
-        <nav className="main-nav" aria-label="Main">
-          <Link href="/manifesto">Manifesto</Link>
-          <Link href="/roadmap">Roadmap</Link>
-          <Link href="/technology">Technology</Link>
-          <Link href="/tracker">Tracker</Link>
-          <Link href="/community">Community</Link>
-          <Link href="/contribute" className="nav-cta">
-            Give your voice
-          </Link>
-        </nav>
+        <SiteNav />
       </div>
     </header>
   );
