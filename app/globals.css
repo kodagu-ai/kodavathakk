@@ -570,6 +570,29 @@ audio { width: 100%; margin-top: 12px; }
 }
 
 /* ── Admin ───────────────────────────────────────────────────────────────── */
+.admin-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+  margin-bottom: 8px;
+}
+.admin-bar-left { display: flex; gap: 14px; align-items: center; }
+.admin-tabs {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.admin-tabs a { color: var(--coffee); text-decoration: none !important; border-bottom: 2px solid transparent; }
+.admin-tabs a:hover { color: var(--maroon); border-bottom-color: var(--gold); }
+a.choice { text-decoration: none !important; color: inherit; display: inline-block; }
+
 .admin-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
 .admin-table th, .admin-table td {
   text-align: left;

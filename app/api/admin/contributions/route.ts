@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
 import { isAdmin, serviceClient, VOICE_BUCKET } from "../../../lib/server";
+import { getAdminUser } from "../../../lib/adminAuth";
 
-// Admin tracker API (bearer ADMIN_KEY).
+// Admin tracker API. Auth: the signed-in admin session (poonacha@cyberhuman.ai)
+// or, as a scripting fallback, the ADMIN_KEY bearer token.
 //   GET  → latest rows (all statuses) with 1-hour signed playback URLs.
-//   POST → { id, status } review action, or { id, analysis } to attach notes.
+//   POST → { id, status } review action.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const VALID = new Set(["received", "reviewed", "rejected"]);
 
+async function isAuthorized(req: Request): Promise<boolean> {
+  if (isAdmin(req)) return true;
+  return !!(await getAdminUser());
+}
+
 export async function GET(req: Request) {
-  if (!isAdmin(req))
+  if (!(await isAuthorized(req)))
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   try {
     const supabase = serviceClient();
@@ -44,7 +51,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!isAdmin(req))
+  if (!(await isAuthorized(req)))
     return NextResponse.json({ error: "Not authorized." }, { status: 401 });
   let body: Record<string, unknown>;
   try {
