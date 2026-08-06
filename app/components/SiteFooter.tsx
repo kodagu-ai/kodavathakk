@@ -33,6 +33,7 @@ export default function SiteFooter() {
           <nav style={{ display: "grid", gap: 8 }} aria-label="Footer">
             <Link href="/manifesto">Manifesto</Link>
             <Link href="/roadmap">Roadmap &amp; milestones</Link>
+            <Link href="/technology">Technology</Link>
             <Link href="/contribute">Contribute your voice</Link>
             <Link href="/tracker">Corpus tracker</Link>
             <Link href="/community">Community</Link>

@@ -18,6 +18,7 @@ export default function SiteHeader() {
         <nav className="main-nav" aria-label="Main">
           <Link href="/manifesto">Manifesto</Link>
           <Link href="/roadmap">Roadmap</Link>
+          <Link href="/technology">Technology</Link>
           <Link href="/tracker">Tracker</Link>
           <Link href="/community">Community</Link>
           <Link href="/contribute" className="nav-cta">
