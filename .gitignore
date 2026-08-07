@@ -30,3 +30,7 @@ brand/extracted/
 # reel working files (raw generation + extracted frames)
 marketing/launch-reel/film-raw.mp4
 marketing/launch-reel/frames/
+marketing/launch-reel/film2-raw.mp4
+marketing/launch-reel/film30.mp4
+marketing/launch-reel/*.wav
+marketing/launch-reel/concat.txt
