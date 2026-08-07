@@ -31,6 +31,8 @@ export default async function AdminPanelLayout({
                 <Link href="/admin">Dashboard</Link>
                 <Link href="/admin/contributions">Review queue</Link>
                 <Link href="/admin/contributors">Contributors</Link>
+                <Link href="/admin/sentences">Sentences</Link>
+                <Link href="/admin/drives">Drives</Link>
               </nav>
             </div>
           </div>

@@ -55,6 +55,28 @@ export async function GET() {
       .slice(0, 24)
       .map((c) => ({ ...c, badge: badgeFor(c.clips, c.seconds).key }));
 
+    // Group leaderboards: by okka (clan) and by village/place.
+    const rowsArr = data ?? [];
+    const groupBy = (keyFn: (r: (typeof rowsArr)[number]) => string | null) => {
+      const m = new Map<string, { label: string; clips: number; seconds: number; voices: Set<string> }>();
+      for (const r of rowsArr) {
+        const label = (keyFn(r) || "").trim();
+        if (!label) continue;
+        const k = label.toLowerCase();
+        const cur = m.get(k) ?? { label, clips: 0, seconds: 0, voices: new Set<string>() };
+        cur.clips += 1;
+        cur.seconds += r.duration_seconds ?? 0;
+        cur.voices.add(r.contributor_key);
+        m.set(k, cur);
+      }
+      return Array.from(m.values())
+        .sort((a, b) => b.seconds - a.seconds || b.clips - a.clips)
+        .slice(0, 15)
+        .map((g) => ({ label: g.label, clips: g.clips, seconds: g.seconds, voices: g.voices.size }));
+    };
+    const okkas = groupBy((r) => r.okka);
+    const places = groupBy((r) => r.place);
+
     const feed = (data ?? []).slice(0, 12).map((r) => ({
       name: (r.name || "").trim().split(/\s+/)[0] || "A speaker",
       okka: r.okka ?? null,
@@ -65,11 +87,11 @@ export async function GET() {
     }));
 
     return NextResponse.json(
-      { top, feed },
+      { top, okkas, places, feed },
       { headers: { "cache-control": "public, s-maxage=60, stale-while-revalidate=300" } }
     );
   } catch (err) {
     console.error("leaderboard failed:", err);
-    return NextResponse.json({ top: [], feed: [] }, { status: 200 });
+    return NextResponse.json({ top: [], okkas: [], places: [], feed: [] }, { status: 200 });
   }
 }

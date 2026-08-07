@@ -8,6 +8,14 @@ type Stats = {
   recordings: number;
   seconds: number;
   hours: number;
+  validatedHours?: number;
+  activeDrive?: {
+    name: string;
+    nameKn: string | null;
+    endsAt: string;
+    targetHours: number;
+    driveHours: number;
+  } | null;
   byDialect: Record<string, number>;
   recent: {
     name: string;
@@ -128,8 +136,27 @@ export default function StatsBand() {
   // Duplicate the list so the marquee loops seamlessly.
   const track = [...items, ...items];
 
+  const drive = stats.activeDrive;
+
   return (
     <>
+      {drive && (
+        <div style={{ background: "var(--gold)", color: "#241b16", padding: "10px 0" }}>
+          <div
+            className="container"
+            style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", fontWeight: 700, fontSize: "0.95rem" }}
+          >
+            <span>
+              🥁 {drive.name}
+              {drive.nameKn ? <span className="kn"> · {drive.nameKn}</span> : null} — recording drive live now
+            </span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>
+              {drive.driveHours}h of the {drive.targetHours}h goal · ends{" "}
+              {new Date(drive.endsAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+            </span>
+          </div>
+        </div>
+      )}
       <div className="dial-band">
         <div className="container dial-wrap">
           <Dial hours={stats.hours} />

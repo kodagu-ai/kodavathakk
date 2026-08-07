@@ -37,6 +37,7 @@ export default function SiteNav() {
       <Link href="/roadmap" onClick={close}>Roadmap</Link>
       <Link href="/technology" onClick={close}>Technology</Link>
       <Link href="/tracker" onClick={close}>Tracker</Link>
+      <Link href="/validate" onClick={close}>Listen &amp; Verify</Link>
       <Link href="/community" onClick={close}>Community</Link>
     </>
   );

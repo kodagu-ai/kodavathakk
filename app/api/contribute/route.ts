@@ -86,6 +86,27 @@ export async function POST(req: Request) {
   const email = str(body.email, 200);
   const contributorKey = (phone || email || `${name}|${place}`).toLowerCase();
 
+  // AI-at-intake: client-computed audio metrics + content hash.
+  const sha256Raw = str(body.sha256, 70);
+  const sha256 = sha256Raw && /^[0-9a-f]{64}$/.test(sha256Raw) ? sha256Raw : null;
+  let clientAnalysis: Record<string, number> | null = null;
+  if (body.analysis && typeof body.analysis === "object") {
+    const a = body.analysis as Record<string, unknown>;
+    const num = (v: unknown) => (typeof v === "number" && isFinite(v) ? v : null);
+    clientAnalysis = {};
+    for (const k of ["rmsDb", "silenceRatio", "clipRatio", "decodedSeconds"]) {
+      const v = num(a[k]);
+      if (v !== null) clientAnalysis[k] = v;
+    }
+    if (Object.keys(clientAnalysis).length === 0) clientAnalysis = null;
+  }
+  const flags: Record<string, boolean> = {};
+  if (clientAnalysis) {
+    if ((clientAnalysis.rmsDb ?? 0) < -38) flags.veryQuiet = true;
+    if ((clientAnalysis.silenceRatio ?? 0) > 0.9) flags.mostlySilent = true;
+    if ((clientAnalysis.clipRatio ?? 0) > 0.05) flags.clipping = true;
+  }
+
   const rawFileName = str(body.fileName, 200) || "recording.webm";
   const safeName = rawFileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-100);
 
@@ -113,10 +134,31 @@ export async function POST(req: Request) {
     size_bytes: sizeBytes,
     status: "uploading",
     contributor_key: contributorKey,
+    sha256,
+    analysis:
+      clientAnalysis || Object.keys(flags).length
+        ? { client: clientAnalysis, flags }
+        : null,
   };
 
   try {
     const supabase = serviceClient();
+
+    // Duplicate detection: the exact same audio bytes already in the corpus.
+    if (sha256) {
+      const { data: dup } = await supabase
+        .from("thakk_contributions")
+        .select("id")
+        .eq("sha256", sha256)
+        .in("status", ["uploading", "received", "reviewed"])
+        .limit(1);
+      if (dup && dup.length > 0)
+        return NextResponse.json(
+          { error: "This exact recording is already in the corpus — thank you! Record something new instead." },
+          { status: 409 }
+        );
+    }
+
     const { data: inserted, error } = await supabase
       .from("thakk_contributions")
       .insert(row)

@@ -24,6 +24,7 @@ type Feed = {
   seconds: number;
   at: string;
 };
+type Group = { label: string; clips: number; seconds: number; voices: number };
 
 const CONTENT_LABEL: Record<string, string> = {
   story: "a story",
@@ -101,7 +102,10 @@ function BadgeChip({ badgeKey }: { badgeKey: string }) {
 
 export default function Leaderboard() {
   const [top, setTop] = useState<Top[]>([]);
+  const [okkas, setOkkas] = useState<Group[]>([]);
+  const [places, setPlaces] = useState<Group[]>([]);
   const [feed, setFeed] = useState<Feed[]>([]);
+  const [tab, setTab] = useState<"people" | "okkas" | "places">("people");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -109,11 +113,15 @@ export default function Leaderboard() {
       .then((r) => r.json())
       .then((d) => {
         setTop(d.top ?? []);
+        setOkkas(d.okkas ?? []);
+        setPlaces(d.places ?? []);
         setFeed(d.feed ?? []);
         setLoaded(true);
       })
       .catch(() => setLoaded(true));
   }, []);
+
+  const groups = tab === "okkas" ? okkas : places;
 
   return (
     <section className="section-warm">
@@ -156,7 +164,54 @@ export default function Leaderboard() {
         >
           {/* Leaderboard */}
           <div>
-            {top.length === 0 ? (
+            <div className="choice-row" style={{ marginBottom: 16 }}>
+              {(
+                [
+                  ["people", "People"],
+                  ["okkas", "Okkas"],
+                  ["places", "Villages"],
+                ] as const
+              ).map(([k, label]) => (
+                <button key={k} className={`choice ${tab === k ? "selected" : ""}`} onClick={() => setTab(k)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {tab !== "people" ? (
+              groups.length === 0 ? (
+                <div className="card">
+                  <p style={{ margin: 0, color: "var(--mist)" }}>
+                    {loaded
+                      ? `No ${tab === "okkas" ? "okka" : "village"} entries yet — the first family on the board earns bragging rights for good.`
+                      : "Loading…"}
+                  </p>
+                </div>
+              ) : (
+                <div className="card" style={{ padding: 18 }}>
+                  {groups.map((g, i) => (
+                    <div
+                      key={g.label}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: "10px 0",
+                        borderBottom: i === groups.length - 1 ? "none" : "1px solid var(--line)",
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, color: "var(--maroon)" }}>
+                        {i < 3 ? <span aria-hidden>{["🥇", "🥈", "🥉"][i]} </span> : `${i + 1}. `}
+                        {g.label}
+                      </span>
+                      <span style={{ color: "var(--mist)", fontVariantNumeric: "tabular-nums" }}>
+                        {g.voices} voice{g.voices === 1 ? "" : "s"} · {g.clips} clip{g.clips === 1 ? "" : "s"} · {minutes(g.seconds)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : top.length === 0 ? (
               <div className="card">
                 <p style={{ marginBottom: 6, fontWeight: 600, color: "var(--maroon)" }}>
                   {loaded ? "The honour roll is waiting for its first name." : "Loading the honour roll…"}

@@ -8,6 +8,8 @@ type Stats = {
   recordings: number;
   seconds: number;
   hours: number;
+  validatedHours?: number;
+  validationVotes?: number;
   byDialect: Record<string, number>;
 };
 
@@ -60,6 +62,11 @@ export default function TrackerDetail() {
             <Bar label="Phase 1 · Corpus at scale" value={hours} target={PHASE_TARGETS.phase1} />
             <Bar label="Phase 2 · Models v1" value={hours} target={PHASE_TARGETS.phase2} />
             <Bar label="Phase 3 · The speaking companion" value={hours} target={PHASE_TARGETS.phase3} />
+            <p style={{ fontSize: "0.95rem", color: "var(--coffee)", fontWeight: 600 }}>
+              👂 Community-validated: {(stats?.validatedHours ?? 0).toFixed(1)}h
+              {stats?.validationVotes ? ` from ${stats.validationVotes} listener votes` : ""} ·{" "}
+              <a href="/validate">help verify clips</a>
+            </p>
             <p style={{ fontSize: "0.88rem", color: "var(--mist)" }}>
               Targets are hours of raw described audio per the roadmap. Transcribed-hour
               milestones are published with each corpus release.

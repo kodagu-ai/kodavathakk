@@ -27,13 +27,28 @@ export default async function ContributionsPage({
   let query = supabase
     .from("thakk_contributions")
     .select(
-      "id, name, phone, email, place, okka, age_band, dialect, fluency, content_type, prompt_label, notes, consent, duration_seconds, storage_path, size_bytes, status, created_at"
+      "id, name, phone, email, place, okka, age_band, dialect, fluency, content_type, prompt_label, notes, consent, duration_seconds, storage_path, size_bytes, status, created_at, analysis"
     )
     .order("created_at", { ascending: false })
     .limit(200);
   if (filter !== "all") query = query.eq("status", filter);
   const { data, error } = await query;
   const rows = data ?? [];
+
+  // Community validation tallies for the listed clips.
+  const voteTally = new Map<string, { pos: number; neg: number }>();
+  if (rows.length) {
+    const { data: votes } = await supabase
+      .from("thakk_validations")
+      .select("contribution_id, audible, is_thakk")
+      .in("contribution_id", rows.map((r) => r.id));
+    for (const v of votes ?? []) {
+      const t = voteTally.get(v.contribution_id) ?? { pos: 0, neg: 0 };
+      if (v.audible && v.is_thakk) t.pos += 1;
+      else t.neg += 1;
+      voteTally.set(v.contribution_id, t);
+    }
+  }
 
   const withAudio = await Promise.all(
     rows.map(async (r) => {
@@ -108,6 +123,40 @@ export default async function ContributionsPage({
                       .filter((k) => (r.consent as Record<string, boolean> | null)?.[k])
                       .join(" · ") || "—"}
                   </p>
+                  {(() => {
+                    const t = voteTally.get(r.id);
+                    const a = (r.analysis ?? {}) as {
+                      client?: Record<string, number>;
+                      flags?: Record<string, boolean>;
+                    };
+                    const flags = Object.keys(a.flags ?? {});
+                    const validated = t && t.pos >= 2 && t.pos > t.neg;
+                    if (!t && !a.client && flags.length === 0) return null;
+                    return (
+                      <p style={{ margin: "4px 0 0", fontSize: "0.85rem" }}>
+                        {t && (
+                          <span style={{ color: validated ? "var(--forest)" : "var(--mist)", fontWeight: 600 }}>
+                            👂 {t.pos}✓ {t.neg}✗{validated ? " · validated" : ""}
+                          </span>
+                        )}
+                        {a.client && (
+                          <span style={{ color: "var(--mist)" }}>
+                            {t ? " · " : ""}
+                            {a.client.rmsDb !== undefined ? `${a.client.rmsDb} dB` : ""}
+                            {a.client.silenceRatio !== undefined
+                              ? ` · ${Math.round(a.client.silenceRatio * 100)}% silence`
+                              : ""}
+                          </span>
+                        )}
+                        {flags.length > 0 && (
+                          <span style={{ color: "var(--maroon)", fontWeight: 600 }}>
+                            {" "}
+                            · ⚠ {flags.join(", ")}
+                          </span>
+                        )}
+                      </p>
+                    );
+                  })()}
                   {r.prompt_label && (
                     <p style={{ margin: "6px 0 0", fontSize: "0.88rem", fontStyle: "italic", color: "var(--mist)" }}>
                       Prompt: {r.prompt_label}

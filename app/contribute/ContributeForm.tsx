@@ -47,6 +47,56 @@ function readDuration(file: Blob): Promise<number | null> {
   });
 }
 
+// Client-side "AI at intake": loudness, silence and clipping metrics via
+// WebAudio, plus a SHA-256 content hash for duplicate detection. Runs in the
+// browser so the serverless backend never has to decode audio.
+async function analyzeAudio(blob: Blob): Promise<Record<string, number> | null> {
+  try {
+    const buf = await blob.arrayBuffer();
+    const Ctx: typeof AudioContext =
+      window.AudioContext || (window as any).webkitAudioContext;
+    const ctx = new Ctx();
+    const audio = await ctx.decodeAudioData(buf.slice(0));
+    const data = audio.getChannelData(0);
+    const n = data.length;
+    const step = Math.max(1, Math.floor(n / 200_000));
+    let sumSq = 0;
+    let silent = 0;
+    let clipped = 0;
+    let counted = 0;
+    for (let i = 0; i < n; i += step) {
+      const s = data[i];
+      sumSq += s * s;
+      if (Math.abs(s) < 0.004) silent += 1;
+      if (Math.abs(s) > 0.985) clipped += 1;
+      counted += 1;
+    }
+    ctx.close();
+    const rms = Math.sqrt(sumSq / counted);
+    return {
+      rmsDb: Math.round(20 * Math.log10(rms || 1e-8) * 10) / 10,
+      silenceRatio: Math.round((silent / counted) * 1000) / 1000,
+      clipRatio: Math.round((clipped / counted) * 1000) / 1000,
+      decodedSeconds: Math.round(audio.duration),
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function sha256Hex(blob: Blob): Promise<string | null> {
+  try {
+    const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return null;
+  }
+}
+
+type Sentence = { id: string; text: string; translit: string | null; translation_en: string | null };
+
 export default function ContributeForm() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [err, setErr] = useState("");
@@ -78,6 +128,24 @@ export default function ContributeForm() {
   const [consentTraining, setConsentTraining] = useState(true);
   const [consentPublic, setConsentPublic] = useState(false);
   const [consentArchive, setConsentArchive] = useState(false);
+
+  // Read-aloud sentence drive (only shown when the admin has activated
+  // reviewed sentences).
+  const [sentences, setSentences] = useState<Sentence[]>([]);
+  const [sentenceIdx, setSentenceIdx] = useState(0);
+  const [sentenceMode, setSentenceMode] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/sentences")
+      .then((r) => r.json())
+      .then((d) => {
+        if (Array.isArray(d.sentences) && d.sentences.length) {
+          setSentences(d.sentences);
+          setSentenceIdx(Math.floor(Math.random() * d.sentences.length));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -168,6 +236,8 @@ export default function ContributeForm() {
     const durationSeconds = duration || Math.max(1, Math.round(blob.size / 16000));
     setPhase("submitting");
     try {
+      const [analysis, sha256] = await Promise.all([analyzeAudio(blob), sha256Hex(blob)]);
+      const sentence = sentenceMode && sentences[sentenceIdx] ? sentences[sentenceIdx] : null;
       const res = await fetch("/api/contribute", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -180,9 +250,15 @@ export default function ContributeForm() {
           ageBand,
           dialect,
           fluency,
-          contentType,
-          promptLabel: contentType === "prompt" ? promptLabel : null,
+          contentType: sentence ? "prompt" : contentType,
+          promptLabel: sentence
+            ? `Sentence: ${sentence.text}`.slice(0, 300)
+            : contentType === "prompt"
+              ? promptLabel
+              : null,
           notes,
+          analysis,
+          sha256,
           durationSeconds,
           fileName,
           mimeType: blob.type || "audio/webm",
@@ -249,6 +325,44 @@ export default function ContributeForm() {
     <div>
       {/* Step 1 — the recording */}
       <h3>1 · Record, or upload a file</h3>
+
+      {sentences.length > 0 && (
+        <div className="field" style={{ marginBottom: 14 }}>
+          <div className="choice-row">
+            <button type="button" className={`choice ${!sentenceMode ? "selected" : ""}`} onClick={() => setSentenceMode(false)}>
+              Free recording
+            </button>
+            <button type="button" className={`choice ${sentenceMode ? "selected" : ""}`} onClick={() => setSentenceMode(true)}>
+              Read a sentence
+            </button>
+          </div>
+        </div>
+      )}
+
+      {sentenceMode && sentences[sentenceIdx] && (
+        <div className="card" style={{ marginBottom: 16, borderLeft: "4px solid var(--gold)" }}>
+          <p className="kicker">Read this aloud, in Thakk</p>
+          <p className="kn" style={{ fontSize: "1.5rem", color: "var(--maroon)", fontWeight: 600, margin: "0 0 6px" }}>
+            {sentences[sentenceIdx].text}
+          </p>
+          {sentences[sentenceIdx].translit && (
+            <p style={{ margin: "0 0 4px", color: "var(--coffee)" }}>{sentences[sentenceIdx].translit}</p>
+          )}
+          {sentences[sentenceIdx].translation_en && (
+            <p style={{ margin: 0, fontSize: "0.9rem", color: "var(--mist)" }}>
+              &ldquo;{sentences[sentenceIdx].translation_en}&rdquo;
+            </p>
+          )}
+          <button
+            type="button"
+            className="choice"
+            style={{ marginTop: 12 }}
+            onClick={() => setSentenceIdx((i) => (i + 1) % sentences.length)}
+          >
+            ↻ Another sentence
+          </button>
+        </div>
+      )}
       <div className="recorder">
         {phase === "recording" ? (
           <>
@@ -387,30 +501,38 @@ export default function ContributeForm() {
         <span className="hint">Learners are welcome — learner speech helps the models help learners.</span>
       </div>
 
-      {/* Step 3 — what it is */}
+      {/* Step 3 — what it is (sentence mode tags itself automatically) */}
       <h3 style={{ marginTop: 30 }}>3 · What did you record?</h3>
-      <div className="field">
-        <div className="choice-row" role="radiogroup" aria-label="Content type">
-          {CONTENT_TYPES.map((c) => (
-            <label key={c.key} className={`choice ${contentType === c.key ? "selected" : ""}`}>
-              <input type="radio" name="ctype" value={c.key} checked={contentType === c.key} onChange={() => setContentType(c.key)} />
-              {c.label}
-            </label>
-          ))}
-        </div>
-      </div>
-      {contentType === "prompt" && (
-        <div className="field">
-          <label htmlFor="c-prompt">Which prompt?</label>
-          <select id="c-prompt" value={promptLabel} onChange={(e) => setPromptLabel(e.target.value)}>
-            <option value="">Choose the prompt you answered</option>
-            {PROMPTS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </div>
+      {sentenceMode ? (
+        <p className="hint" style={{ color: "var(--mist)", marginBottom: 18 }}>
+          Tagged automatically as a read sentence — nothing to choose here.
+        </p>
+      ) : (
+        <>
+          <div className="field">
+            <div className="choice-row" role="radiogroup" aria-label="Content type">
+              {CONTENT_TYPES.map((c) => (
+                <label key={c.key} className={`choice ${contentType === c.key ? "selected" : ""}`}>
+                  <input type="radio" name="ctype" value={c.key} checked={contentType === c.key} onChange={() => setContentType(c.key)} />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </div>
+          {contentType === "prompt" && (
+            <div className="field">
+              <label htmlFor="c-prompt">Which prompt?</label>
+              <select id="c-prompt" value={promptLabel} onChange={(e) => setPromptLabel(e.target.value)}>
+                <option value="">Choose the prompt you answered</option>
+                {PROMPTS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </>
       )}
       <div className="field">
         <label htmlFor="c-notes">Anything we should know?</label>

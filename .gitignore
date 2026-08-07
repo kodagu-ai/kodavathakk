@@ -26,3 +26,7 @@ public_favicon_tmp/
 brand/extracted/
 *.zip
 .env*
+
+# reel working files (raw generation + extracted frames)
+marketing/launch-reel/film-raw.mp4
+marketing/launch-reel/frames/

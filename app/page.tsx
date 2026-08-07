@@ -59,9 +59,14 @@ export default function HomePage() {
                 prompt about your morning coffee. Thirty seconds from a phone
                 is a real contribution; an hour with an elder is an heirloom.
               </p>
-              <Link href="/contribute" className="btn btn-primary" style={{ marginTop: 8 }}>
-                Start recording
-              </Link>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
+                <Link href="/contribute" className="btn btn-primary">
+                  Start recording
+                </Link>
+                <Link href="/validate" className="btn btn-outline">
+                  👂 Listen &amp; verify instead
+                </Link>
+              </div>
             </div>
             <div className="card">
               <p className="kicker">How it works</p>
